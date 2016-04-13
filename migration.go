@@ -11,7 +11,7 @@ type MigrationDescriptor interface {
 
 type Migration struct {
 	db       *dbx.DB
-	name 	 string
+	name     string
 	up, down *dbx.Query
 }
 

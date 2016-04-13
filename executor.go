@@ -1,14 +1,15 @@
 package migrate
 
 import (
-	"github.com/go-ozzo/ozzo-dbx"
 	"errors"
 	"fmt"
+	"github.com/go-ozzo/ozzo-dbx"
 )
 
 type Executor struct {
 	db         *dbx.DB
 	TableName  string
+	LogFunc    dbx.LogFunc
 	migrations []MigrationDescriptor
 }
 
@@ -17,6 +18,7 @@ func NewExecutor(db *dbx.DB) *Executor {
 	return &Executor{
 		db,
 		"migrate",
+		nil,
 		m,
 	}
 }
@@ -25,7 +27,7 @@ func (m *Executor) appliedMap() (r map[string]int, err error) {
 	var (
 		rows *dbx.Rows
 		name string
-		id int
+		id   int
 	)
 	r = make(map[string]int)
 	rows, err = m.db.Select("id", "name").From(m.TableName).Rows()
@@ -57,7 +59,7 @@ func (m *Executor) NewMigration(name string) *Migration {
 func (m *Executor) Up() error {
 
 	m.db.CreateTable(m.TableName, map[string]string{
-		"id": "int primary key",
+		"id":   "int primary key",
 		"name": "varchar(100)",
 	}).Execute()
 
@@ -66,7 +68,7 @@ func (m *Executor) Up() error {
 		return err
 	}
 
-	for i, d := range(m.migrations) {
+	for i, d := range m.migrations {
 		if _, ok := applied[d.Name()]; ok {
 			continue
 		}
@@ -79,16 +81,15 @@ func (m *Executor) Up() error {
 			return err
 		}
 		_, err = m.db.Insert(m.TableName, dbx.Params{
-			"id":i,
-			"name":d.Name(),
+			"id":   i,
+			"name": d.Name(),
 		}).Execute()
 		if err != nil {
 			return err
 		}
+		if m.LogFunc != nil {
+			m.LogFunc("Successfully migrate up %v", d.Name())
+		}
 	}
 	return nil
 }
-
-
-
-
